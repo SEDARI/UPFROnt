@@ -1,6 +1,7 @@
 var bodyParser = require('body-parser');
 var express = require('express');
 var path = require('path');
+var w = require('winston');
 
 function Server(settings) {
     this.settings = settings;
@@ -23,66 +24,69 @@ Server.prototype.init = function(initFunction) {
     } else
         this.useCluster = false;
 
-    if (this.useCluster && this.cluster.isMaster) {
-        // Count the machine's CPUs
-        var cpuCount = require('os').cpus().length;
-        if(this.settings.cluster < cpuCount)
-            cpuCount = this.settings.cluster;
+    var self = this;
 
-        var self = this;
-        var promises = [];
-        // Create a worker for each CPU
-        for (var i = 0; i < cpuCount; i += 1) {
-            promises.push(new Promise(function(resolve, reject) {
-                var worker = self.cluster.fork().on('online', function() {
-                    worker.on('message', function(msg) {
-                        if(msg.msg) {
-                            resolve();
-                        } else if(msg.error) {
-                            reject(new Error(JSON.stringify(msg.error)));
-                            worker.kill();
-                        } else {
-                            reject(new Error("Unspecified error in worker."));
-                        }
+    if (this.useCluster) {
+        if(this.cluster.isMaster) {
+            // Count the machine's CPUs
+            var cpuCount = require('os').cpus().length;
+            if(this.settings.cluster < cpuCount)
+                cpuCount = this.settings.cluster;
+
+            var promises = [];
+            // Create a worker for each CPU
+            for (var i = 0; i < cpuCount; i += 1) {
+                promises.push(new Promise(function(resolve, reject) {
+                    var worker = self.cluster.fork().on('online', function() {
+                        worker.on('message', function(msg) {
+                            if(msg.msg) {
+                                resolve();
+                            } else if(msg.error) {
+                                reject(new Error(JSON.stringify(msg.error)));
+                                worker.kill();
+                            } else {
+                                reject(new Error("Unspecified error in worker."));
+                            }
+                        });
                     });
-                });
-            }));
-        }
+                }));
+            }
 
-        return Promise.all(promises);
+            return Promise.all(promises);
+        } else {
+            var self = this;
+            var f = function(resolve, reject) {
+                self.server = self.app.listen(
+                    self.settings.port,
+                    self.settings.host,
+                    function () {
+                        initFunction().then(function() {
+                            var msg = "UPFront PAP instance ("+process.pid+") is now running at "+getListenPath(self.settings);
+                            process.tite = "UPFront PAP";
+                            process.send({msg: msg});
+                        }, function(e) {
+                            process.send({error: e});
+                        })
+                    });
+            };
+            
+            f(console.log, console.log);
+            return Promise.resolve(false);
+        }
     } else {
-        var self = this;
-        var f = function(resolve, reject) {
+        w.info("PAP Server is running without cluster.");
+        return new Promise(function(resolve, reject) {
             self.server = self.app.listen(
                 self.settings.port,
                 self.settings.host,
-                function () {
-                    initFunction().then(function() {
-                        var msg = "UPFront PAP instance ("+process.pid+") is now running at "+getListenPath(self.settings);
-                        console.log("HERE");
-                        process.tite = "UPFront PAP";
-                        if(self.useCluster) 
-                            process.send({msg: msg});
-                        else {
-                            resolve(msg);
-                        }
+                function() {
+                    initFunction().then(function(r) {
+                        resolve(r);
                     }, function(e) {
-                        if(self.useCluster)
-                            process.send({error: e});
-                        else
-                            reject(e);
+                        reject(e);
                     })
-                }
-            );
-        };
-
-        if(this.useCluster) {
-            f(console.log, console.log);
-            return Promise.resolve(false);
-        } else
-            return new Promise(function(resolve, reject) {
-                f(resolve, reject);
-            });
+                });
+        });
     }
 };
 
