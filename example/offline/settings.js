@@ -1,21 +1,21 @@
 module.exports = {
+    ulocks: {
+        entityTypes : {
+            "/any"    :  0,
+            "/group"  :  1,
+            "/user"   :  2,
+            "/sensor" :  3,
+            "/client" :  4,
+            "/api"    :  5,
+            "/const"  :  6,
+            "/attr"   :  6,
+            "/prop"   :  6,
+            "/var"    :  6,
+        },
+        locks: "./Locks/",
+        actions: "./Actions"
+    },
     pdp : {
-        ulocks: {
-            entityTypes : {
-                "/any"    :  0,
-                "/group"  :  1,
-                "/user"   :  2,
-                "/sensor" :  3,
-                "/client" :  4,
-                "/api"    :  5,
-                "/const"  :  6,
-                "/attr"   :  6,
-                "/prop"   :  6,
-                "/var"    :  6,
-            },
-            locks: "/home/dasch/projects/UPFROnt/example/online/Locks/",
-            actions: "/home/dasch/projects/UPFROnt/example/online/Actions"
-        }
     },
     pap: {
         // this specifies host, port and path where
@@ -24,7 +24,7 @@ module.exports = {
         // if undefined, the module runs as a PAP client
         // accessing another PAP server
         server: {
-            "host": "localhost",
+            host: "localhost",
             port: 1234,
             path: "/pap/",
             tls: false,

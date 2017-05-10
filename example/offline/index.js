@@ -82,7 +82,7 @@ upfront.init(settings)
     .then(function(v) {
         for(var i = 0; i < 12; i++)
             console.log("values["+i+"]: ", v[i]);
-        
+
         var retrieve = [];
         retrieve.push(pap.get(sample.entities.user.id, ""));
         retrieve.push(pap.get(sample.entities.admin.id, ""));
@@ -260,13 +260,14 @@ upfront.init(settings)
         
         return pap.getFullRecord(sample.entities.sensor.id);
     }, chainError).then(function(r) {
-        if(r.self === undefined || r.self === undefined || r.self !== null ||
-           r.properties === undefined || r.properties.credentials === undefined ||
-           r.properties.credentials.self === undefined || r.properties.credentials.self !== null)
+        if(r.o.s === undefined || r.o.s === undefined || r.o.s !== null ||
+           r.o.p === undefined || r.o.p.credentials === undefined ||
+           r.o.p.credentials.s === undefined || r.o.p.credentials.s !== null)
             return Promise.reject(new Error("ERROR: Deletion did not reset policies or destroyed PAP structure"));
         else
             console.log("Success: Properties deleted successfully");
-        
+
+        // TODO: Wrong test case as this should only delete the entity policy not the whole record
            return pap.del(sample.entities.sensor.id);
     }, chainError).then(function(del) {
         if(del === null)
@@ -274,19 +275,33 @@ upfront.init(settings)
         else
             console.log("Success: Entity policy deletion was triggered.");
         
-        return pap.getFullRecord(sample.entities.sensor.id);
+        return pap.get(sample.entities.sensor.id);
     }, chainError).then(function(r) {
         if(r !== null)
-            return Promise.reject(new Error("ERROR: Entity policy deletion was not successful as the sensor still has a policy"));
+            return Promise.reject(new Error("Entity policy deletion was not successful as the sensor still has a policy"));
         else
             console.log("Success: Sensor does not have policy after deletion.");
 
-        return pap.del(sample.entities.sensor.id);
+        return pap.delRecord(sample.entities.sensor.id);
+    }, chainError).then(function(del) {
+        if(del === null)
+            return Promise.reject(new Error("PolicyObject record deletion was not successful."));
+        else
+            console.log("Success: PolicyObject record deletion was triggered.");
+
+        return pap.get(sample.entities.sensor.id);
+    }, chainError).then(function(r) {
+        if(r !== null) 
+            return Promise.reject(new Error("Record deletion was not successful as the record for this sensor still exists"));
+        else
+            console.log("Success: Sensor does not have a record.");
+
+        return pap.delRecord(sample.entities.sensor.id);
     }, chainError).then(function(del) {
         if(del !== null)
-            return Promise.reject(new Error("ERROR: It should not be possible to delete an entity policy a second time!"));
+            return Promise.reject(new Error("It should not be possible to delete a PolicyObject record policy a second time!"));
         else
-            console.log("Success: Entity can only be deleted once.");
+            console.log("Success: PolicyObject record can only be deleted once.");
 
         return Promise.resolve();
     }, chainError).catch(function(reason) {
