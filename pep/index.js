@@ -116,34 +116,38 @@ function genDeclassifyPromise(property, object, policyObject, target, targetPoli
     });
 }
 
-function declassifyRec(objInfo, object, objectPolicy, target, targetPolicy, effPolicy) {
+function declassifyRec(objInfo, object, objectPO, target, targetPolicy, effPolicy) {
     return new Promise(function(resolve, reject) {        
         var promises = [];
 
-        var filtered = object instanceof Array ? [] : {};
-        var curOPol = objectPolicy;
+        // TODO: RELIES ON OLD POLICYOBJECT -> REVISE!!! 
 
-        if(objectPolicy.self !== null || effPolicy === undefined)
-            effPolicy = objectPolicy.self;
+        var filtered = object instanceof Array ? [] : {};
+        var curPO = objectPO;
+
+        if(effPolicy === undefined)
+            effPolicy = objectPO.getProperty("");
 
         for(var p in object) {
             if(object.hasOwnProperty(p)) {
                 var promise = null;
 
-                if(!(curOPol.properties && curOPol.properties.hasOwnProperty(p)) && effPolicy === null)
+                var propPolicy = curPO.getProperty(p);
+
+                if(propPolicy === null && effPolicy === null)
                     continue;
 
-                if(typeof object[p] === "object" && curOPol.properties && curOPol.properties.hasOwnProperty(p)) {
-                    promise = genDeclassifyPromise(p, object[p], curOPol.properties[p], target, targetPolicy, objInfo, effPolicy);
+                if(typeof object[p] === "object" && propPolicy !== null) {
+                    promise = genDeclassifyPromise(p, object[p], curPO.getSubPolicyObject(p), target, targetPolicy, objInfo, effPolicy);
                 } else {
 
                     // TODO: p is inside a loop => correct as it changes in the promise while looping
                     // translate into function call => only way to avoid the same variable scope!
 
-                    if(!curOPol.properties || !curOPol.properties.hasOwnProperty(p) || curOPol.properties[p].self == null)
+                    if(propPolicy === null)
                         promise = genCheckReadPromise(p, object, target, targetPolicy, objInfo, effPolicy);
                     else 
-                        promise = genCheckReadPromise(p, object, target, targetPolicy, objInfo, curOPol.properties[p].self);
+                        promise = genCheckReadPromise(p, object, target, targetPolicy, objInfo, propPolicy);
                 }
 
                 promises.push(promise);
