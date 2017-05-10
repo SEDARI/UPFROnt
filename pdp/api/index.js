@@ -5,12 +5,17 @@ var Promise = require('bluebird');
 var ULocks = require('ULocks');
 var Policy = require('ULocks').Policy;
 var Context = require('ULocks').Context;
+var w = require('winston');
 
 var pap = null;
 
 function init(settings, PAP) {
     pap = PAP;
-    return ULocks.init(settings.ulocks);
+    
+    if(settings.server) 
+        return Promise.resolve();
+    else
+        return ULocks.init(settings.ulocks);
 }
 
 function valid(o) {
@@ -79,8 +84,7 @@ function checkWrite(subject, subjectPolicy, object, objectPolicy) {
             checkArgs(subject, subjectPolicy, object, objectPolicy, "checkWrite").then(function(args) {
                 if(!args.withPo) {
                     checkWriteWoPo(args.subject, args.object, args.property).then(resolve);
-                }
-                else {
+                } else {
                     checkWriteWithPo(args.subject, args.subjectPolicy, args.object, args.objectPolicy).then(resolve);
                 }
             }, function(e) {
@@ -91,7 +95,7 @@ function checkWrite(subject, subjectPolicy, object, objectPolicy) {
 };
 
 function checkReadWoPo(subject, object, property) {
-    console.log("PDP: checkReadWoPo("+JSON.stringify(subject)+", "+JSON.stringify(object)+", "+JSON.stringify(property)+")");
+    w.debug("pdp.api.checkReadWoPo("+JSON.stringify(subject)+", "+JSON.stringify(object)+", "+JSON.stringify(property)+")");
     return new Promise(function(resolve, reject) {
         // fetch policyobjects for subject and object
         pap.get(subject.id).then(function(sp) {
@@ -115,7 +119,8 @@ function checkReadWoPo(subject, object, property) {
 };
 
 function checkWriteWoPo(subject, object, property) {
-    console.log("PDP: checkWriteWoPo("+JSON.stringify(subject)+", "+JSON.stringify(object)+", "+JSON.stringify(property)+")");
+    w.debug("pdp.api.checkWriteWoPo("+JSON.stringify(subject)+", "+JSON.stringify(object)+", "+JSON.stringify(property)+")");
+    
     return new Promise(function(resolve, reject) {
         // fetch policyobjects for subject and object
         pap.get(subject.id).then(function(sp) {
@@ -174,15 +179,25 @@ function checkReadWithPo(subject, subjectPolicy, object, objectPolicy) {
 }
 
 function checkWriteWithPo(subject, subjectPolicy, object, objectPolicy) {
+    w.info("PDP.api.checkWriteWithPo:");
+    w.info("\targ1 - subject: ", subject);
+    w.info("\targ2 - subjectPolicy: ", subjectPolicy);
+    w.info("\targ3 - object: ", object);
+    w.info("\targ4 - objectPolicy: ", objectPolicy);
+    
     try {
         if(!(subjectPolicy instanceof Policy))
             subjectPolicy = new Policy(subjectPolicy);
 
-        if(!(objectPolicy instanceof Policy))
+        if(!(objectPolicy instanceof Policy)) {
             objectPolicy = new Policy(objectPolicy);
+        }
+
+        w.info("subjectPolicy: " + subjectPolicy);
+        w.info("objectPolicy: " + objectPolicy);
     }
     catch(e) {
-        console.log("something is wrong");
+        w.error("Construction of Policy failed");
         return Promise.reject(e);
     }
 

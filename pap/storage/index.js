@@ -2,7 +2,6 @@ var NodeCache = require('node-cache');
 var clone = require('clone');
 var Promise = require('bluebird');
 var w = require('winston');
-
 w.level = process.env.LOG_LEVEL;
 
 var policyCache = null;
@@ -15,17 +14,17 @@ var dbModule = null;
 function init(settings, cluster) {
     return new Promise(function(resolve, reject) {
         if(dbModule !== null)
-            reject(new Error("Storage module has already been initialized"));
+            reject(new Error("pap.storage.init(...): Storage module has already been initialized"));
         
         if(!settings)
-            reject(new Error("ERROR: PAP: Missing or invalid settings file."));
+            reject(new Error("pap.storage.init(...): Missing or invalid settings file."));
 
         if(!settings.type)
-            reject(new Error("ERROR: PAP: Missing 'type' in PAP storage settings."));
+            reject(new Error("pap.storage.init(...): Missing 'type' in PAP storage settings."));
         else
             if(settings.type === "remote") {
                 // TODO: connect to another PAP
-                reject(new Error("Remote storage type has not been implemented yet!"));
+                reject(new Error("pap.storage.init(...): Remote storage type has not been implemented yet!"));
             } else {
                 try {
                     if(settings.type ==="external" && settings.module_name){
@@ -35,7 +34,7 @@ function init(settings, cluster) {
                       dbModule = require("./modules/"+settings.type);
                     }
                 } catch(e) {
-                    reject("ERROR: Unable to load database module '"+settings.type+"'. " + e);
+                    reject(new Error("pap.storage.init(...): Unable to load database module '"+settings.type+"'. " + e));
                     return;
                 };
 
@@ -49,7 +48,7 @@ function init(settings, cluster) {
                         });
 
                         if(!settings.cache.sync && cluster > 1) {
-                            reject("ERROR: PAP is misconfigured. Configuration specifies cache without a sync module for cache synchronisation!");
+                            reject(new Error("pap.storage.init(...): PAP is misconfigured. Configuration specifies cache without a sync module for cache synchronisation!"));
                             return;
                         }
 
@@ -59,8 +58,8 @@ function init(settings, cluster) {
                                 // TODO: change such that it can also be loaded from an arbitrary directory
                                 syncModule = require("./modules/"+settings.cache.sync.type);
                             } catch(e) {
-                                reject(new Error("PAP is unable to load synchronization module for cache synching in cluster!"));
-                                w.error("PAP is unable to load synchronization module for cache synching in cluster!");
+                                reject(new Error("pap.storage.init(...): PAP is unable to load synchronization module '"+settings.cache.sync.type+"' for cache synching in cluster! "+e));
+                                w.error("pap.storage.init(...): PAP is unable to load synchronization module '"+settings.cache.sync.type+"' for cache synching in cluster! "+e);
                                 return;
                             }
 
@@ -76,7 +75,7 @@ function init(settings, cluster) {
                                 w.info("Storage successfully started synchronization module.");
                                 resolve();
                             }, function(e) {
-                                w.error("Storage module is unable to instantiate synchronization module.");
+                                w.error("pap.storage.init(...): Storage module is unable to instantiate synchronization module.");
                                 reject(e);
                             });
                         } else {
@@ -102,14 +101,14 @@ module.exports = {
 function get(id) {
     return new Promise(function (resolve, reject) {
         if(id === undefined) {
-            reject("ERROR: Storage.get(...): Missing valid identifier to call get.");
+            reject(new Error("pap.storage.get(...): Missing valid identifier to call get."));
             return;
         }
 
         if(dbModule === null)
-            reject("ERROR: PAP does not know how to lookup policies.");
+            reject(new Error("pap.storage.get(...): PAP does not know how to lookup policies."));
         else if(id === undefined)
-            reject("ERROR: Must specify id when calling getEntity");
+            reject(new Error("pap.storage.get: Must specify id when calling getEntity"));
 
         var policyObject = undefined;
         if(policyCache !== null)
@@ -119,7 +118,8 @@ function get(id) {
             dbModule.read(id).then(function(pO) {
                 if(policyCache !== null)
                     policyCache.set(id, pO);
-                w.log('debug', "Cache miss! Retrieved object '"+id+"' from db.");
+                w.debug("pap.storage.get(...): Cache miss! Retrieved object '"+id+"' from db.");
+                w.debug("\tstorage.get("+id+") => "+JSON.stringify(pO));
                 resolve(pO);
             }, function(e) {
                 reject(e);
@@ -132,30 +132,31 @@ function get(id) {
 };
 
 // TODO: requries some locking here in sync medium
-function set(id, policyObject, uid) {
+function set(id, policyObject) {
     return new Promise(function (resolve, reject) {
         if(id === undefined) {
-            reject("ERROR: Storage.set(...): Missing valid identifier to call set.");
+            reject(new Error("pap.storage.set(...): Missing valid identifier to call set."));
             return;
         }
         if(policyObject === undefined) {
-            reject("ERROR: Storage.set(...): Missing policyObject to call set.");
+            reject(new Error("pap.storage.set(...): Missing policyObject to call set."));
             return;
         }
 
         if(dbModule === null)
-            reject("ERROR: PAP does not know how to lookup policies.");
+            reject(new Error("pap.storage.set(...): PAP does not know how to lookup policies."));
         else if(id === undefined)
-            reject("ERROR: Must specify id, policy when calling setEntity");
+            reject(new Error("pap.storage.set(...): Must specify id, policy when calling setEntity"));
 
         syncModule.lock(id).then(function(unlock) {
-            dbModule.update(id, policyObject, uid).then(function(r) {
+            dbModule.update(id, policyObject).then(function(r) {
                 if(policyCache !== null)
                     policyCache.set(id, r);
                 
                 if(syncModule)
                     syncModule.mark(id);
 
+                w.debug("storage.set("+id+", "+JSON.stringify(policyObject)+")");
                 resolve(r.pO);
                 unlock();
             }, function(e) {

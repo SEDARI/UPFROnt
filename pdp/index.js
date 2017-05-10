@@ -4,8 +4,8 @@ var pap = require('../pap');
 // TODO: Check how to share app with PAP
 function init(settings) {
     return new Promise(function(resolve, reject) {
-        pap.init(settings.pap).then(function() {
-            api.init(settings.pdp, pap).then(function() {
+        pap.init(settings).then(function() {
+            api.init(settings, pap).then(function() {
                 resolve();
             }, function(e) {
                 reject(e);
