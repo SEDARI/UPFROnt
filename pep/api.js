@@ -4,7 +4,7 @@ w.level = process.env.LOG_LEVEL;
 
 var pap = require('../pap');
 var pdp = require('../pdp');
-var Policy = require('ULocks').Policy;
+var Policy = require('ulocks').Policy;
 
 function isValid(o) {
     return (o !== undefined && o !== null)

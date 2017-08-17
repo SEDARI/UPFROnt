@@ -1,4 +1,4 @@
-var ulocks = require('ULocks');
+var ulocks = require('ulocks');
 var w = require('winston');
 w.level = process.env.LOG_LEVEL;
 
