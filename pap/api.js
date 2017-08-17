@@ -3,7 +3,7 @@ var Promise = require('bluebird');
 var w = require("winston");
 w.level = process.env.LOG_LEVEL;
 
-var ulocks = require('ULocks');
+var ulocks = require('ulocks');
 var Policy = ulocks.Policy;
 
 var mutex = require("./mutex");

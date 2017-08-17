@@ -4,9 +4,9 @@ w.level = process.env.LOG_LEVEL;
 
 var Promise = require('bluebird');
 
-var ULocks = require('ULocks');
-var Policy = require('ULocks').Policy;
-var Context = require('ULocks').Context;
+var ULocks = require('ulocks');
+var Policy = require('ulocks').Policy;
+var Context = require('ulocks').Context;
 
 var pap = null;
 
